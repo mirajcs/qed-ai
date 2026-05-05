@@ -7,38 +7,58 @@ import os
 from tqdm import tqdm
 
 
+BENCHMARK_URL = "https://zenodo.org/records/12740403/files/leandojo_benchmark_4.tar.gz"
+BENCHMARK_TGZ = "data/leandojo_benchmark_4.tar.gz"
+BENCHMARK_DIR = "data/leandojo_benchmark_4"
+
+
 def extract_leandojo_data(output_path="data/lean4_tactics.json"):
     """
-    Extract training data from Mathlib4 via LeanDojo.
-    This gives us 259k (proof_state → tactic) pairs.
+    Build training data from the pre-extracted LeanDojo Benchmark 4 dataset
+    (Zenodo). Downloads ~68 MB, then flattens theorem-level traces into
+    (state_before, tactic, state_after, theorem_name) records.
     """
+    import tarfile
+    import urllib.request
+
     print("=" * 50)
     print("  QED AI — Data Preparation")
     print("=" * 50)
 
-    from lean_dojo import LeanGitRepo, trace
-
-    print("\n📥 Downloading Mathlib4 via LeanDojo...")
-    print("   This takes 2-4 hours — submit as SLURM job!")
-
-    repo = LeanGitRepo("https://github.com/leanprover-community/mathlib4", "v4.3.0")
-    traced = trace(repo)
-
-    print("\n🔄 Extracting tactics...")
-    data = []
-    for theorem in tqdm(traced.get_theorems()):
-        for tactic in theorem.traced_tactics:
-            data.append(
-                {
-                    "state_before": str(tactic.state_before),
-                    "tactic": str(tactic.tactic),
-                    "state_after": str(tactic.state_after),
-                    "theorem_name": str(theorem.full_name),
-                }
-            )
-
-    # Save
     os.makedirs("data", exist_ok=True)
+
+    if not os.path.exists(BENCHMARK_TGZ):
+        print(f"\n📥 Downloading {BENCHMARK_URL}")
+        urllib.request.urlretrieve(BENCHMARK_URL, BENCHMARK_TGZ)
+        print(f"   Saved to {BENCHMARK_TGZ}")
+
+    if not os.path.isdir(BENCHMARK_DIR):
+        print(f"\n📂 Extracting {BENCHMARK_TGZ}")
+        with tarfile.open(BENCHMARK_TGZ) as tar:
+            tar.extractall("data")
+
+    splits = [
+        os.path.join(BENCHMARK_DIR, "random", name)
+        for name in ("train.json", "val.json", "test.json")
+    ]
+
+    print("\n🔄 Flattening tactics...")
+    data = []
+    for split_path in splits:
+        with open(split_path) as f:
+            theorems = json.load(f)
+        for thm in tqdm(theorems, desc=os.path.basename(split_path)):
+            name = thm.get("full_name") or thm.get("name") or ""
+            for t in thm.get("traced_tactics", []):
+                data.append(
+                    {
+                        "state_before": t.get("state_before", ""),
+                        "tactic": t.get("tactic", ""),
+                        "state_after": t.get("state_after", ""),
+                        "theorem_name": name,
+                    }
+                )
+
     with open(output_path, "w") as f:
         json.dump(data, f)
 
