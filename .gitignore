@@ -1,0 +1,28 @@
+# Training data — too large
+data/*.json
+data/*.csv
+data/proofnet/
+
+# Model weights — on Hugging Face instead
+saved_model/*.pt
+saved_model/*.bin
+checkpoints/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# SLURM logs
+logs/
+
+# Mac
+.DS_Store
+
+# VS Code
+.vscode/
+*.vsix
+
+# Experiment tracking
+wandb/
