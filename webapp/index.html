@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QED AI — Math Proof Assistant</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        :root {
+            --bg      : #0f0f1a;
+            --surface : #1a1a2e;
+            --accent  : #6c63ff;
+            --text    : #e2e8f0;
+            --muted   : #94a3b8;
+            --green   : #10b981;
+            --border  : #2d2d5e;
+            --code    : #0d1117;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background : var(--bg);
+            color      : var(--text);
+            height     : 100vh;
+            display    : flex;
+            flex-direction: column;
+        }
+        header {
+            background   : var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding      : 16px 24px;
+            display      : flex;
+            align-items  : center;
+            gap          : 12px;
+        }
+        .logo {
+            font-size  : 22px;
+            font-weight: 700;
+            background : linear-gradient(135deg, #6c63ff, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .status {
+            margin-left: auto;
+            display    : flex;
+            align-items: center;
+            gap        : 6px;
+            font-size  : 13px;
+            color      : var(--muted);
+        }
+        .dot {
+            width        : 8px;
+            height       : 8px;
+            border-radius: 50%;
+            background   : var(--green);
+            animation    : pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%,100%{opacity:1} 50%{opacity:.4}
+        }
+        .layout {
+            display : flex;
+            flex    : 1;
+            overflow: hidden;
+        }
+        .sidebar {
+            width         : 240px;
+            background    : var(--surface);
+            border-right  : 1px solid var(--border);
+            padding       : 20px;
+            display       : flex;
+            flex-direction: column;
+            gap           : 8px;
+        }
+        .sidebar h3 {
+            font-size     : 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color         : var(--muted);
+            margin-bottom : 8px;
+        }
+        .ex {
+            background   : #16213e;
+            border       : 1px solid var(--border);
+            border-radius: 8px;
+            padding      : 10px 12px;
+            cursor       : pointer;
+            font-size    : 13px;
+            color        : var(--text);
+            text-align   : left;
+            transition   : all .2s;
+            font-family  : monospace;
+        }
+        .ex:hover { border-color:var(--accent); background:rgba(108,99,255,.1); }
+        .chat {
+            flex          : 1;
+            display       : flex;
+            flex-direction: column;
+            overflow      : hidden;
+        }
+        .messages {
+            flex      : 1;
+            overflow-y: auto;
+            padding   : 24px;
+            display   : flex;
+            flex-direction: column;
+            gap       : 16px;
+        }
+        .welcome {
+            display        : flex;
+            flex-direction : column;
+            align-items    : center;
+            justify-content: center;
+            height         : 100%;
+            gap            : 12px;
+            text-align     : center;
+        }
+        .welcome h2 {
+            font-size : 36px;
+            background: linear-gradient(135deg,#6c63ff,#a78bfa);
+            -webkit-background-clip:text;
+            -webkit-text-fill-color:transparent;
+        }
+        .welcome p { color:var(--muted); max-width:380px; }
+        .msg { display:flex; gap:12px; max-width:760px; }
+        .msg.user { align-self:flex-end; flex-direction:row-reverse; }
+        .avatar {
+            width        : 34px;
+            height       : 34px;
+            border-radius: 50%;
+            display      : flex;
+            align-items  : center;
+            justify-content:center;
+            font-size    : 15px;
+            flex-shrink  : 0;
+        }
+        .avatar.ai   { background:linear-gradient(135deg,#6c63ff,#a78bfa); }
+        .avatar.user { background:#16213e; border:1px solid var(--border); }
+        .bubble {
+            background   : var(--surface);
+            border       : 1px solid var(--border);
+            border-radius: 16px;
+            padding      : 14px 18px;
+            font-size    : 15px;
+            line-height  : 1.6;
+        }
+        .msg.user .bubble {
+            background  : rgba(108,99,255,.15);
+            border-color: rgba(108,99,255,.3);
+        }
+        .proof-box {
+            margin-top   : 12px;
+            background   : var(--code);
+            border       : 1px solid var(--border);
+            border-radius: 10px;
+            overflow     : hidden;
+        }
+        .proof-header {
+            padding    : 8px 14px;
+            background : rgba(16,185,129,.1);
+            color      : var(--green);
+            font-size  : 13px;
+            font-weight: 600;
+        }
+        .proof-code {
+            padding    : 14px;
+            font-family: monospace;
+            font-size  : 13px;
+            color      : #a5d6ff;
+            white-space: pre-wrap;
+        }
+        .typing { display:flex; gap:4px; align-items:center; padding:8px 0; }
+        .typing span {
+            width:8px;height:8px;border-radius:50%;
+            background:var(--accent);
+            animation:bounce 1.2s infinite;
+        }
+        .typing span:nth-child(2){animation-delay:.2s}
+        .typing span:nth-child(3){animation-delay:.4s}
+        @keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-8px)}}
+        .input-area {
+            padding   : 20px 24px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+        }
+        .input-wrap {
+            display      : flex;
+            gap          : 10px;
+            align-items  : flex-end;
+            background   : #16213e;
+            border       : 1px solid var(--border);
+            border-radius: 14px;
+            padding      : 12px 16px;
+            transition   : border-color .2s;
+        }
+        .input-wrap:focus-within { border-color:var(--accent); }
+        textarea {
+            flex      : 1;
+            background: transparent;
+            border    : none;
+            outline   : none;
+            color     : var(--text);
+            font-size : 15px;
+            resize    : none;
+            max-height: 100px;
+            font-family:inherit;
+        }
+        textarea::placeholder { color:var(--muted); }
+        .send {
+            background   : var(--accent);
+            border       : none;
+            border-radius: 10px;
+            width        : 38px;
+            height       : 38px;
+            cursor       : pointer;
+            display      : flex;
+            align-items  : center;
+            justify-content:center;
+            transition   : all .2s;
+        }
+        .send:hover { background:#a78bfa; transform:scale(1.05); }
+        .send:disabled { opacity:.5; cursor:not-allowed; }
+        .hint { font-size:12px; color:var(--muted); text-align:center; margin-top:8px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">∎ QED AI</div>
+    <span style="color:var(--muted);font-size:13px">Math Proof Assistant</span>
+    <div class="status">
+        <div class="dot" id="dot"></div>
+        <span id="statusText">Connecting...</span>
+    </div>
+</header>
+
+<div class="layout">
+    <div class="sidebar">
+        <h3>Try These</h3>
+        <button class="ex" onclick="send('Prove that n + 0 = n')">∀ n, n + 0 = n</button>
+        <button class="ex" onclick="send('Prove that a + b = b + a')">a + b = b + a</button>
+        <button class="ex" onclick="send('Prove that 1 + 1 = 2')">1 + 1 = 2</button>
+        <button class="ex" onclick="send('Suggest tactics for ⊢ n + 0 = n')">Suggest tactics</button>
+        <button class="ex" onclick="send('Prove that 2 is prime')">2 is prime</button>
+    </div>
+
+    <div class="chat">
+        <div class="messages" id="msgs">
+            <div class="welcome" id="welcome">
+                <div style="font-size:52px">∎</div>
+                <h2>QED AI</h2>
+                <p>Every proof, verified.<br>Type a theorem and I'll prove it.</p>
+            </div>
+        </div>
+        <div class="input-area">
+            <div class="input-wrap">
+                <textarea id="inp" rows="1"
+                    placeholder="Prove that... or Suggest tactics for..."
+                    onkeydown="key(event)"
+                    oninput="resize(this)"></textarea>
+                <button class="send" id="btn" onclick="send()">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                        <path d="M2 21l21-9L2 3v7l15 2-15 2v7z"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="hint">Enter to send · Shift+Enter for new line</div>
+        </div>
+    </div>
+</div>
+
+<script>
+const API  = "https://YOUR_USERNAME-qed-ai.hf.space";
+let loading = false;
+
+async function checkHealth() {
+    try {
+        const r = await fetch(`${API}/health`);
+        const d = await r.json();
+        document.getElementById("dot").style.background  = d.status === "ok" ? "#10b981" : "#f59e0b";
+        document.getElementById("statusText").textContent = d.status === "ok" ? "Ready ∎" : "Loading...";
+        if (d.status !== "ok") setTimeout(checkHealth, 5000);
+    } catch {
+        document.getElementById("dot").style.background  = "#ef4444";
+        document.getElementById("statusText").textContent = "Offline";
+    }
+}
+
+async function send(text) {
+    const inp = document.getElementById("inp");
+    const msg = text || inp.value.trim();
+    if (!msg || loading) return;
+
+    const w = document.getElementById("welcome");
+    if (w) w.remove();
+
+    inp.value = "";
+    resize(inp);
+    addMsg("user", msg);
+
+    const tid = addTyping();
+    loading   = true;
+    document.getElementById("btn").disabled = true;
+
+    try {
+        const r = await fetch(`${API}/chat`, {
+            method : "POST",
+            headers: {"Content-Type":"application/json"},
+            body   : JSON.stringify({message: msg})
+        });
+        const d = await r.json();
+        removeTyping(tid);
+        addMsg("ai", formatResponse(d.response));
+    } catch {
+        removeTyping(tid);
+        addMsg("ai", "❌ Could not reach QED AI server.");
+    }
+
+    loading = false;
+    document.getElementById("btn").disabled = false;
+    inp.focus();
+}
+
+function formatResponse(text) {
+    if (text.includes("Proof:")) {
+        const parts = text.split("Proof:");
+        const proof = parts[1].split("Verified")[0].trim();
+        return `
+            <div>${parts[0]}</div>
+            <div class="proof-box">
+                <div class="proof-header">✓ Verified by Lean 4</div>
+                <div class="proof-code">${proof}</div>
+            </div>
+            <div style="margin-top:8px;color:#10b981;font-size:13px">∎</div>
+        `;
+    }
+    return text.replace(/\n/g, "<br>");
+}
+
+function addMsg(role, content) {
+    const msgs = document.getElementById("msgs");
+    const d    = document.createElement("div");
+    d.className = `msg ${role}`;
+    d.innerHTML = `
+        <div class="avatar ${role}">${role === "ai" ? "∎" : "👤"}</div>
+        <div class="bubble">${content}</div>
+    `;
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addTyping() {
+    const msgs = document.getElementById("msgs");
+    const id   = "t" + Date.now();
+    const d    = document.createElement("div");
+    d.className = "msg ai";
+    d.id        = id;
+    d.innerHTML = `
+        <div class="avatar ai">∎</div>
+        <div class="bubble">
+            <div class="typing"><span></span><span></span><span></span></div>
+        </div>
+    `;
+    msgs.appendChild(d);
+    msgs.scrollTop = msgs.scrollHeight;
+    return id;
+}
+
+function removeTyping(id) {
+    const el = document.getElementById(id);
+    if (el) el.remove();
+}
+
+function key(e) {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
+}
+
+function resize(el) {
+    el.style.height = "auto";
+    el.style.height = Math.min(el.scrollHeight, 100) + "px";
+}
+
+checkHealth();
+setInterval(checkHealth, 30000);
+document.getElementById("inp").focus();
+</script>
+</body>
+</html>
