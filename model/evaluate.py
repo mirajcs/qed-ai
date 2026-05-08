@@ -64,14 +64,13 @@ def sample_decode(model, prompt_ids, device, max_new=MAX_NEW_TOKENS, temperature
 
 
 def teacher_forced_nll(model, prompt_ids, target_ids, device):
+    max_len = model.cfg.max_seq_len
+    target_ids = target_ids[: max_len - 1]
+    prompt_ids = prompt_ids[-(max_len - len(target_ids)) :]
     full = torch.tensor([prompt_ids + target_ids], device=device)
-    if full.shape[1] > model.cfg.max_seq_len:
-        full = full[:, -model.cfg.max_seq_len :]
-        prompt_len = full.shape[1] - len(target_ids)
-    else:
-        prompt_len = len(prompt_ids)
     with torch.no_grad():
         logits = model(full)
+    prompt_len = len(prompt_ids)
     pred = logits[0, prompt_len - 1 : prompt_len - 1 + len(target_ids), :]
     target = torch.tensor(target_ids, device=device)
     log_probs = F.log_softmax(pred, dim=-1)
